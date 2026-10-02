@@ -1,0 +1,1 @@
+﻿SELECT * FROM TalepGecmisi ORDER BY Id DESC;

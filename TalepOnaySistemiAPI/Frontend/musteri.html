@@ -1,0 +1,219 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PirCloud — Müşteri Paneli</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="topbar">
+        <div class="brand">PirCloud</div>
+        <div style="display:flex; align-items:center; gap:16px;">
+            <span class="kullanici" id="kullaniciAdi"></span>
+            <button class="btn btn-outline btn-sm" onclick="cikisYap()">Çıkış Yap</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 style="margin-bottom: 24px;">Panelim</h2>
+
+        <div class="stat-grid" id="statGrid">
+            <div class="stat-card">
+                <div class="sayi" id="toplamTalep">—</div>
+                <div class="etiket">Toplam Talep</div>
+            </div>
+            <div class="stat-card">
+                <div class="sayi" id="bekleyenTalep">—</div>
+                <div class="etiket">Bekleyen</div>
+            </div>
+            <div class="stat-card">
+                <div class="sayi" id="onaylananTalep">—</div>
+                <div class="etiket">Onaylanan</div>
+            </div>
+            <div class="stat-card">
+                <div class="sayi" id="reddedilenTalep">—</div>
+                <div class="etiket">Reddedilen</div>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 32px;">
+            <h3 style="margin-top:0;">Yeni Talep Oluştur</h3>
+            <form id="talepForm">
+                <div class="form-grup">
+                    <label for="talepTipiId">Talep Tipi</label>
+                    <select id="talepTipiId" required></select>
+                </div>
+                <div class="form-grup">
+                    <label for="baslik">Başlık</label>
+                    <input type="text" id="baslik" required minlength="5" maxlength="250">
+                </div>
+                <div class="form-grup">
+                    <label for="aciklama">Açıklama</label>
+                    <textarea id="aciklama" rows="3" required minlength="10"></textarea>
+                </div>
+                <div class="form-grup">
+                    <label for="oncelik">Öncelik</label>
+                    <select id="oncelik">
+                        <option value="Dusuk">Düşük</option>
+                        <option value="Normal" selected>Normal</option>
+                        <option value="Yuksek">Yüksek</option>
+                    </select>
+                </div>
+                <div id="formMesaji" class="uyari" style="display:none;"></div>
+                <button type="submit" class="btn btn-primary">Talep Gönder</button>
+            </form>
+        </div>
+
+        <div class="panel">
+            <h3 style="margin-top:0;">Taleplerim</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Talep No</th>
+                        <th>Başlık</th>
+                        <th>Tip</th>
+                        <th>Öncelik</th>
+                        <th>Durum</th>
+                        <th>Tarih</th>
+                    </tr>
+                </thead>
+                <tbody id="talepTablosu">
+                    <tr><td colspan="6">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://localhost:7045/api";
+        const token = localStorage.getItem("token");
+
+        if (!token || localStorage.getItem("rol") !== "Musteri") {
+            window.location.href = "login.html";
+        }
+
+        document.getElementById("kullaniciAdi").textContent = localStorage.getItem("adSoyad") || "";
+
+        function cikisYap() {
+            localStorage.clear();
+            window.location.href = "login.html";
+        }
+
+        function apiIstek(endpoint, secenekler = {}) {
+            return fetch(`${API_URL}${endpoint}`, {
+                ...secenekler,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                    ...(secenekler.headers || {})
+                }
+            });
+        }
+
+        function rozetSinifi(durumAdi) {
+            const eslesme = {
+                "Beklemede": "rozet-beklemede",
+                "Onaylandi": "rozet-onaylandi",
+                "Reddedildi": "rozet-reddedildi",
+                "Inceleniyor": "rozet-inceleniyor"
+            };
+            return eslesme[durumAdi] || "rozet-beklemede";
+        }
+
+        async function dashboardYukle() {
+            const response = await apiIstek("/Dashboard/musteri");
+            if (!response.ok) return;
+            const data = await response.json();
+            document.getElementById("toplamTalep").textContent = data.toplamTalep;
+            document.getElementById("bekleyenTalep").textContent = data.bekleyenTalep;
+            document.getElementById("onaylananTalep").textContent = data.onaylananTalep;
+            document.getElementById("reddedilenTalep").textContent = data.reddedilenTalep;
+        }
+
+        async function talepTipleriniDoldur() {
+            const response = await apiIstek("/TalepTipi");
+            if (!response.ok) return;
+
+            const tipler = await response.json();
+            const select = document.getElementById("talepTipiId");
+            tipler.forEach(t => {
+                const option = document.createElement("option");
+                option.value = t.id;
+                option.textContent = t.ad;
+                select.appendChild(option);
+            });
+        }
+
+        async function taleplerYukle() {
+            const response = await apiIstek("/Talep");
+            const tbody = document.getElementById("talepTablosu");
+
+            if (!response.ok) {
+                tbody.innerHTML = `<tr><td colspan="6">Talepler yüklenemedi.</td></tr>`;
+                return;
+            }
+
+            const talepler = await response.json();
+
+            if (talepler.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6">Henüz talebiniz yok.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = talepler.map(t => `
+                <tr>
+                    <td>${t.talepNo}</td>
+                    <td>${t.baslik}</td>
+                    <td>${t.talepTipiAdi}</td>
+                    <td>${t.oncelik}</td>
+                    <td><span class="rozet ${rozetSinifi(t.durumAdi)}">${t.durumAdi}</span></td>
+                    <td>${new Date(t.talepTarihi).toLocaleDateString("tr-TR")}</td>
+                </tr>
+            `).join("");
+        }
+
+        document.getElementById("talepForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formMesaji = document.getElementById("formMesaji");
+            formMesaji.style.display = "none";
+
+            const dto = {
+                talepTipiId: parseInt(document.getElementById("talepTipiId").value),
+                baslik: document.getElementById("baslik").value,
+                aciklama: document.getElementById("aciklama").value,
+                oncelik: document.getElementById("oncelik").value
+            };
+
+            const response = await apiIstek("/Talep", {
+                method: "POST",
+                body: JSON.stringify(dto)
+            });
+
+            if (!response.ok) {
+                const hata = await response.json().catch(() => null);
+                formMesaji.textContent = hata?.mesaj || "Talep oluşturulamadı.";
+                formMesaji.className = "uyari uyari-hata";
+                formMesaji.style.display = "block";
+                return;
+            }
+
+            const sonuc = await response.json();
+            formMesaji.textContent = `Talep oluşturuldu: ${sonuc.talepNo}`;
+            formMesaji.className = "uyari uyari-basari";
+            formMesaji.style.display = "block";
+
+            document.getElementById("talepForm").reset();
+            dashboardYukle();
+            taleplerYukle();
+        });
+
+        (async function () {
+            await talepTipleriniDoldur();
+            dashboardYukle();
+            taleplerYukle();
+        })();
+    </script>
+</body>
+</html>

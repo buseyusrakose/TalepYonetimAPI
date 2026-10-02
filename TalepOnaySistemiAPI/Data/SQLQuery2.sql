@@ -1,0 +1,7 @@
+﻿ALTER TABLE Talepler
+ADD GuncelleyenKullaniciId INT NULL,
+    SonIslemAciklama NVARCHAR(500) NULL;
+
+    SELECT COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'Talepler';

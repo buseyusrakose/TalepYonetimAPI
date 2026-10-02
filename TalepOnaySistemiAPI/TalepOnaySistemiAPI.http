@@ -1,0 +1,6 @@
+@TalepOnaySistemiAPI_HostAddress = http://localhost:5190
+
+GET {{TalepOnaySistemiAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

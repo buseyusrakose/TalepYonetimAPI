@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PirCloud — Giriş</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            margin: 0;
+        }
+
+        .ekran {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .marka-panel {
+            flex: 1;
+            background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 64px;
+            position: relative;
+            overflow: hidden;
+        }
+
+            .marka-panel::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+                background-size: 48px 48px;
+            }
+
+            .marka-panel .icerik {
+                position: relative;
+                max-width: 380px;
+            }
+
+            .marka-panel p {
+                color: #d6e0ff;
+                line-height: 1.6;
+                font-size: 0.95rem;
+            }
+
+        .form-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+
+        .form-kutu {
+            width: 100%;
+            max-width: 360px;
+        }
+
+            .form-kutu h2 {
+                font-size: 1.5rem;
+                margin-bottom: 6px;
+            }
+
+            .form-kutu .alt-yazi {
+                color: var(--slate);
+                margin-bottom: 32px;
+                font-size: 0.9rem;
+            }
+
+        @media (max-width: 800px) {
+            .marka-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ekran">
+        <div class="marka-panel">
+            <div class="icerik">
+                <img src="logo.png" alt="PirCloud" style="width: 72px; height: 72px; border-radius: 16px; margin-bottom: 20px;">
+                <p>Müşteri, yetkili ve yönetici hesapları için ortak giriş noktası. Her talep bir numarayla izlenir; durumu baştan sona görülebilir.</p>
+            </div>
+        </div>
+        <div class="form-panel">
+            <div class="form-kutu">
+                <h2>Giriş Yap</h2>
+                <p class="alt-yazi">Hesap bilgilerinizle devam edin.</p>
+                <form id="loginForm">
+                    <div class="form-grup">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div class="form-grup">
+                        <label for="password">Şifre</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <div id="hataMesaji" class="uyari uyari-hata" style="display:none;"></div>
+                    <button type="submit" class="btn btn-primary" style="width:100%;">Giriş Yap</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://localhost:7045/api";
+
+        document.getElementById("loginForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const hataMesaji = document.getElementById("hataMesaji");
+            hataMesaji.style.display = "none";
+
+            try {
+                const response = await fetch(`${API_URL}/Auth/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) {
+                    hataMesaji.textContent = "Email veya şifre hatalı.";
+                    hataMesaji.style.display = "block";
+                    return;
+                }
+
+                const data = await response.json();
+
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("adSoyad", data.adSoyad);
+                localStorage.setItem("rol", data.rol);
+
+                if (data.rol === "Musteri") window.location.href = "musteri.html";
+                else if (data.rol === "Yetkili") window.location.href = "yetkili.html";
+                else if (data.rol === "Yonetici") window.location.href = "yonetici.html";
+            } catch (err) {
+                hataMesaji.textContent = "Sunucuya bağlanılamadı. API çalışıyor mu?";
+                hataMesaji.style.display = "block";
+            }
+        });
+    </script>
+</body>
+</html>

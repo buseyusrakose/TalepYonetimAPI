@@ -1,0 +1,233 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PirCloud — Yetkili Paneli</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .modal-arka-plan {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(16,21,31,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+            .modal-arka-plan.acik {
+                display: flex;
+            }
+
+        .modal-kutu {
+            background: var(--panel);
+            border-radius: 8px;
+            padding: 24px;
+            width: 100%;
+            max-width: 420px;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="brand">PirCloud</div>
+        <div style="display:flex; align-items:center; gap:16px;">
+            <span class="kullanici" id="kullaniciAdi"></span>
+            <button class="btn btn-outline btn-sm" onclick="cikisYap()">Çıkış Yap</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 style="margin-bottom: 24px;">Talep Yönetimi</h2>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="sayi" id="bekleyenTalepler">—</div>
+                <div class="etiket">Bekleyen Talepler</div>
+            </div>
+            <div class="stat-card">
+                <div class="sayi" id="bugunGelenTalepler">—</div>
+                <div class="etiket">Bugün Gelen</div>
+            </div>
+            <div class="stat-card">
+                <div class="sayi" id="onaylananTalepler">—</div>
+                <div class="etiket">Onaylanan</div>
+            </div>
+            <div class="stat-card">
+                <div class="sayi" id="reddedilenTalepler">—</div>
+                <div class="etiket">Reddedilen</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3 style="margin-top:0;">Tüm Talepler</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Talep No</th>
+                        <th>Firma</th>
+                        <th>Başlık</th>
+                        <th>Tip</th>
+                        <th>Öncelik</th>
+                        <th>Durum</th>
+                        <th>Tarih</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="talepTablosu">
+                    <tr><td colspan="8">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Reddetme sebebi modalı -->
+    <div class="modal-arka-plan" id="reddetModal">
+        <div class="modal-kutu">
+            <h3 style="margin-top:0;">Talebi Reddet</h3>
+            <div class="form-grup">
+                <label for="redSebebi">Red Sebebi</label>
+                <textarea id="redSebebi" rows="3" required></textarea>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="modalKapat()">Vazgeç</button>
+                <button class="btn btn-danger" onclick="reddetOnayla()">Reddet</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://localhost:7045/api";
+        const token = localStorage.getItem("token");
+        const rol = localStorage.getItem("rol");
+
+        if (!token || (rol !== "Yetkili" && rol !== "Yonetici")) {
+            window.location.href = "login.html";
+        }
+
+        document.getElementById("kullaniciAdi").textContent = localStorage.getItem("adSoyad") || "";
+
+        function cikisYap() {
+            localStorage.clear();
+            window.location.href = "login.html";
+        }
+
+        function apiIstek(endpoint, secenekler = {}) {
+            return fetch(`${API_URL}${endpoint}`, {
+                ...secenekler,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                    ...(secenekler.headers || {})
+                }
+            });
+        }
+
+        function rozetSinifi(durumAdi) {
+            const eslesme = {
+                "Beklemede": "rozet-beklemede",
+                "Onaylandi": "rozet-onaylandi",
+                "Reddedildi": "rozet-reddedildi",
+                "Inceleniyor": "rozet-inceleniyor"
+            };
+            return eslesme[durumAdi] || "rozet-beklemede";
+        }
+
+        async function dashboardYukle() {
+            const response = await apiIstek("/Dashboard/yetkili");
+            if (!response.ok) return;
+            const data = await response.json();
+            document.getElementById("bekleyenTalepler").textContent = data.bekleyenTalepler;
+            document.getElementById("bugunGelenTalepler").textContent = data.bugunGelenTalepler;
+            document.getElementById("onaylananTalepler").textContent = data.onaylananTalepler;
+            document.getElementById("reddedilenTalepler").textContent = data.reddedilenTalepler;
+        }
+
+        async function taleplerYukle() {
+            const response = await apiIstek("/Talep");
+            const tbody = document.getElementById("talepTablosu");
+
+            if (!response.ok) {
+                tbody.innerHTML = `<tr><td colspan="8">Talepler yüklenemedi.</td></tr>`;
+                return;
+            }
+
+            const talepler = await response.json();
+
+            if (talepler.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8">Henüz talep yok.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = talepler.map(t => {
+                const beklemede = t.durumAdi === "Beklemede";
+                const islemButonlari = beklemede
+                    ? `<button class="btn btn-success btn-sm" onclick="onayla(${t.id})">Onayla</button>
+                       <button class="btn btn-danger btn-sm" onclick="reddetAc(${t.id})">Reddet</button>`
+                    : `<span style="color: var(--slate); font-size: 0.85rem;">Sonuçlandı</span>`;
+
+                return `
+                    <tr>
+                        <td>${t.talepNo}</td>
+                        <td>${t.firmaAdi}</td>
+                        <td>${t.baslik}</td>
+                        <td>${t.talepTipiAdi}</td>
+                        <td>${t.oncelik}</td>
+                        <td><span class="rozet ${rozetSinifi(t.durumAdi)}">${t.durumAdi}</span></td>
+                        <td>${new Date(t.talepTarihi).toLocaleDateString("tr-TR")}</td>
+                        <td>${islemButonlari}</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        async function onayla(id) {
+            const response = await apiIstek(`/Talep/${id}/onayla`, { method: "PUT" });
+            if (response.ok) {
+                dashboardYukle();
+                taleplerYukle();
+            } else {
+                const hata = await response.json().catch(() => null);
+                alert(hata?.mesaj || hata || "İşlem başarısız.");
+            }
+        }
+
+        let secilenTalepId = null;
+
+        function reddetAc(id) {
+            secilenTalepId = id;
+            document.getElementById("redSebebi").value = "";
+            document.getElementById("reddetModal").classList.add("acik");
+        }
+
+        function modalKapat() {
+            document.getElementById("reddetModal").classList.remove("acik");
+            secilenTalepId = null;
+        }
+
+        async function reddetOnayla() {
+            const sebep = document.getElementById("redSebebi").value;
+            if (!sebep.trim()) return;
+
+            const response = await apiIstek(`/Talep/${secilenTalepId}/reddet`, {
+                method: "PUT",
+                body: JSON.stringify({ sebep })
+            });
+
+            modalKapat();
+
+            if (response.ok) {
+                dashboardYukle();
+                taleplerYukle();
+            } else {
+                const hata = await response.json().catch(() => null);
+                alert(hata?.mesaj || hata || "İşlem başarısız.");
+            }
+        }
+
+        dashboardYukle();
+        taleplerYukle();
+    </script>
+</body>
+</html>
