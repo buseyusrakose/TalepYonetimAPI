@@ -1,6 +1,6 @@
 # # DemoCloud — Talep ve Onay Yönetim Sistemi
 
-PirCloud müşterilerinin sistem üzerinden talep oluşturabildiği, yetkili ve yönetici rollerinin bu talepleri inceleyip onaylayabildiği/reddedebildiği, rol bazlı bir Talep ve Onay Yönetim Sistemi.
+DemoCloud müşterilerinin sistem üzerinden talep oluşturabildiği, yetkili ve yönetici rollerinin bu talepleri inceleyip onaylayabildiği/reddedebildiği, rol bazlı bir Talep ve Onay Yönetim Sistemi.
 
 ## Proje Mimarisi
 
@@ -87,9 +87,9 @@ Bu ayrım bilinçli bir tercih: API bağımsız olduğu için ileride aynı back
 ### Demo Kullanıcılar
 | Email | Şifre | Rol |
 |---|---|---|
-| musteri@pircloud.com | 123456 | Müşteri |
-| yetkili@pircloud.com | 123456 | Yetkili |
-| yonetici@pircloud.com | 123456 | Yönetici |
+| musteri@democloud.com | 123456 | Müşteri |
+| yetkili@democloud.com | 123456 | Yetkili |
+| yonetici@democloud.com | 123456 | Yönetici |
 
 ## Ekran Görüntüleri
 # login ekranı
@@ -103,4 +103,4 @@ Bu ayrım bilinçli bir tercih: API bağımsız olduğu için ileride aynı back
 
 ## Geliştirici
 
-Buse Yüsra — Sakarya Üniversitesi, Yazılım Mühendisliği — PirCloud Stajı
+Buse Yüsra — Sakarya Üniversitesi, Yazılım Mühendisliği — DemoCloud Stajı
