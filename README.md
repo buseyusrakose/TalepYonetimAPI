@@ -1,4 +1,4 @@
-# # DEmoCloud — Talep ve Onay Yönetim Sistemi
+# # DemoCloud — Talep ve Onay Yönetim Sistemi
 
 PirCloud müşterilerinin sistem üzerinden talep oluşturabildiği, yetkili ve yönetici rollerinin bu talepleri inceleyip onaylayabildiği/reddedebildiği, rol bazlı bir Talep ve Onay Yönetim Sistemi.
 
